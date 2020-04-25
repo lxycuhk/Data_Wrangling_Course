@@ -1,0 +1,7 @@
+library(tidyverse)
+library(rvest)
+library(lubridate)
+library(stringr)
+library(gutenbergr) 
+library(tidytext)
+library(knitr)
