@@ -1,4 +1,4 @@
-install.packages("Rtools")
+
 install.packages('ropenaq')
 library(ropenaq)
 library(tidyverse)
@@ -7,3 +7,7 @@ library(lubridate)
 library(stringr)
 library(tidytext)
 library(knitr)
+library(choroplethr)
+library(choroplethrMaps)
+
+countries = aq_countries()
