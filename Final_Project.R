@@ -11,3 +11,5 @@ library(choroplethr)
 library(choroplethrMaps)
 
 countries = aq_countries()
+US_latest = aq_latest(country = 'US', parameter = 'pm25')
+glimpse(US_latest)
