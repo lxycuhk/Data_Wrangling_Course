@@ -9,6 +9,8 @@ library(tidytext)
 library(knitr)
 library(choroplethr)
 library(choroplethrMaps)
+library(repurrrsive)
+library(broom)
 
 countries = aq_countries()
 ## A test, download latest data in US with the pm25 measurement
@@ -65,13 +67,32 @@ pop.html = "https://www.indexmundi.com/g/r.aspx?t=0&v=21&l=en" %>% read_html()
 population = pop.html %>%
   html_nodes("table") %>% 
   html_table(fill = TRUE)
-pop = as_tibble(pop[[3]][,2:3])
+pop = as_tibble(population[[3]][,c(2,3)])
 
 ## Switch the character format to double
 pop['Population'] = pop['Population'] %>%
   unlist() %>%
   str_remove_all(',') %>% 
-  as.numeric()
-pop['C']
-
+  as.numeric()/1000000
+pop['Country'] = pop['Country'] %>%
+  unlist() %>%
+  tolower()
+colnames(pop)[1] = 'region'
 ## join the pm25 data with population
+value_pop = left_join(mean_table, pop, by = "region") %>% na.exclude()
+
+## Download world human development data
+hdi.html = "https://countryeconomy.com/hdi" %>% read_html()
+hd = hdi.html %>%
+  html_nodes("table[id = tb1]") %>% 
+  html_table()
+hdi = hd[[1]][,c(1,2)]
+hdi['Countries'] = hdi['Countries'] %>% 
+  unlist() %>%
+  str_remove_all(' \\[\\+\\]') %>%
+  tolower()
+
+hdi['HDI'] = -1/log(hdi['HDI'])
+colnames(hdi)[1] = 'region'
+pop_hdi = na.exclude(left_join(value_pop, hdi, by = "region"))
+  
