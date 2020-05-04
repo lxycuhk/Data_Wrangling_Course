@@ -34,6 +34,44 @@ ggplot(data = boxplot) + geom_boxplot(aes(x = country , y = value)) +
   ylim(0, 200)
 
 ## Create choroplethrMaps on average pm25 and its deviation based on latest data
-processed %>% select(country, value) %>%
+avg_sd = processed %>% select(country, value) %>%
   group_by(country) %>%
-  summarise(mean = mean(value), sd = sd(value, na.rm = TRUE))
+  summarise(mean = mean(value), sd = sd(value, na.rm = FALSE))
+
+## create the country_name, avg and country_name, sd tables
+## First import the region name and code 
+data("country.regions")
+region = country.regions
+colnames(region) = c('name', 'country')
+
+## Joint the two tables to fit the choropleth format
+combined = as_tibble(left_join(region, avg_sd, by = "country" ))
+mean_table = select(combined, region = name, value = mean)
+mean_table[is.na(mean_table['value']), 2] = 0
+
+## Create the average choropleth map
+country_choropleth(mean_table, num_colors = 9)
+
+sd_table = select(combined, region = name, value = sd)
+sd_table[is.na(sd_table['value']), 2]  = 0
+
+## Create the standard deviation choropleth map
+country_choropleth(sd_table, num_colors = 9)
+
+## Next stage try build linear regression model with several variables
+
+## Download world population data
+pop.html = "https://www.indexmundi.com/g/r.aspx?t=0&v=21&l=en" %>% read_html()
+population = pop.html %>%
+  html_nodes("table") %>% 
+  html_table(fill = TRUE)
+pop = as_tibble(pop[[3]][,2:3])
+
+## Switch the character format to double
+pop['Population'] = pop['Population'] %>%
+  unlist() %>%
+  str_remove_all(',') %>% 
+  as.numeric()
+pop['C']
+
+## join the pm25 data with population
