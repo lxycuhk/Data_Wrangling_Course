@@ -26,7 +26,7 @@ processed = latest %>% select(location, country, parameter, value, lastUpdated) 
 most = processed %>% group_by(country) %>%
   summarise(n = n()) %>%
   arrange(desc(n)) %>%
-  top_n(n = 20) %>% ungroup()
+  top_n(n = 10) %>% ungroup()
 
 ## Try plot boxplot with the 10 countries which have most records
 boxplot = processed %>%
@@ -53,13 +53,13 @@ mean_table[is.na(mean_table['value']), 2] = 0
 mean_table1 = select(combined, region = name, value = mean)
 
 ## Create the average choropleth map
-country_choropleth(mean_table, num_colors = 9)
+country_choropleth(mean_table, num_colors = 9, title = 'PM2.5 Average Concentration Map')
 
 sd_table = select(combined, region = name, value = sd)
 sd_table[is.na(sd_table['value']), 2]  = 0
 
 ## Create the standard deviation choropleth map
-country_choropleth(sd_table, num_colors = 9)
+country_choropleth(sd_table, num_colors = 9, title = 'PM2.5 Standard Deviation Concentration Map')
 
 ## Next stage try build linear regression model with several variables
 
@@ -82,7 +82,7 @@ colnames(pop)[1] = 'region'
 ## join the pm25 data with population
 value_pop = left_join(mean_table1, pop, by = "region") %>% na.exclude()
 
-## Download world human development data
+## Download world human development data (HDI)
 hdi.html = "https://countryeconomy.com/hdi" %>% read_html()
 hd = hdi.html %>%
   html_nodes("table[id = tb1]") %>% 
@@ -96,11 +96,13 @@ hdi['Countries'] = hdi['Countries'] %>%
 hdi['HDI'] = -1/log(hdi['HDI'])
 colnames(hdi)[1] = 'region'
 pop_hdi = na.exclude(left_join(value_pop, hdi, by = "region"))
+pop_hdi$value[pop_hdi$value < 0] = 0
 
 ## Label the popualtion and HDI based on the value
 q_pop = quantile(pop_hdi$Population, seq(0.1, 1, 0.1), names = FALSE)
 q_hdi = quantile(c(min(pop_hdi['HDI']),max(pop_hdi['HDI'])), seq(0.1, 1, 0.1), names = FALSE)
 
+## Tag the country with the quantile of population and hdi
 pop_hdi_new = pop_hdi %>% 
   mutate(pop_quantile = case_when(Population <= q_pop[1] ~ '10%',
                                        Population <= q_pop[2] & Population > q_pop[1] ~ '20%',
@@ -124,7 +126,16 @@ pop_hdi_new = pop_hdi %>%
                              HDI > q_hdi[9] ~ '100%'))
 
 tile = pop_hdi_new %>% group_by(pop_quantile, hdi_quantile) %>%
-  summarise(mean = log(mean(value)))
-p_cor <-ggplot(tile, aes(pop_quantile, hdi_quantile)) + 
-  geom_tile(aes(fill = mean),colour = "blue") 
+  summarise(mean = sqrt(mean(value)))
+tile[is.na(tile['mean']),3] = 0
+tile$pop_quantile = factor(tile$pop_quantile, levels=c('10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%', '100%'), ordered=TRUE)
+tile$hdi_quantile = factor(tile$hdi_quantile, levels=c('10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%', '100%'), ordered=TRUE)
+heatmap = ggplot(tile, aes(pop_quantile, hdi_quantile), fill = mean) + 
+  geom_tile(aes(fill = mean)) +
+  scale_fill_gradient(low = "white", high = "red") +
+  labs(x = "population_quantile", y = "hdi_quantile", title = "Heatmap: population and hdi")
+heatmap
+
+hdi.fit = lm(value ~ HDI, data = pop_hdi)
+summary(hdi.fit)
   
