@@ -1,3 +1,6 @@
+## To use the API functions one should first install the ropenaq package
+
+## It may take a while to download the data using aq_latest()
 
 install.packages('ropenaq')
 library(ropenaq)
@@ -13,9 +16,9 @@ library(repurrrsive)
 library(broom)
 
 countries = aq_countries()
-## A test, download latest data in US with the pm25 measurement
-US_latest = aq_latest(country = 'US', parameter = 'pm25')
-glimpse(US_latest)
+## A test, download latest data in Mongolia with the pm25 measurement
+MN_latest = aq_latest(country = 'MN', parameter = 'pm25')
+glimpse(MN_latest)
 
 latest = aq_latest(parameter = 'pm25')
 
@@ -93,8 +96,11 @@ hdi['Countries'] = hdi['Countries'] %>%
   str_remove_all(' \\[\\+\\]') %>%
   tolower()
 
+## Scaling the HDI by taking 1-/log(hdi)
 hdi['HDI'] = -1/log(hdi['HDI'])
 colnames(hdi)[1] = 'region'
+
+## Combine the hdi data with population and PM2.5 concentration data
 pop_hdi = na.exclude(left_join(value_pop, hdi, by = "region"))
 pop_hdi$value[pop_hdi$value < 0] = 0
 
@@ -128,14 +134,19 @@ pop_hdi_new = pop_hdi %>%
 tile = pop_hdi_new %>% group_by(pop_quantile, hdi_quantile) %>%
   summarise(mean = sqrt(mean(value)))
 tile[is.na(tile['mean']),3] = 0
+
+## Use quantile as the tag to create heatmap and transform them to ordered factor format
 tile$pop_quantile = factor(tile$pop_quantile, levels=c('10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%', '100%'), ordered=TRUE)
 tile$hdi_quantile = factor(tile$hdi_quantile, levels=c('10%', '20%', '30%', '40%', '50%', '60%', '70%', '80%', '90%', '100%'), ordered=TRUE)
+
+## Create heat map
 heatmap = ggplot(tile, aes(pop_quantile, hdi_quantile), fill = mean) + 
   geom_tile(aes(fill = mean)) +
   scale_fill_gradient(low = "white", high = "red") +
   labs(x = "population_quantile", y = "hdi_quantile", title = "Heatmap: population and hdi")
 heatmap
 
+## Try linear regression with HDI as predictor
 hdi.fit = lm(value ~ HDI, data = pop_hdi)
 summary(hdi.fit)
   
